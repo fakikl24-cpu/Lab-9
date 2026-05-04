@@ -193,6 +193,281 @@ People who did recidivate two years later did have higher compas scores
 than people who didn’t but people who recidivated don’t seem just as
 likely to have a high risk score as a low risk score.
 
-Almost there! Keep building on your work and follow the same structure
-for any remaining exercises. Each exercise builds on the last, so take
-your time and make sure your code is working as expected.
+``` r
+compas <- compas %>% 
+  mutate(classification = case_when(
+    decile_score >= 7 & two_year_recid == 1 ~ "TP", 
+             decile_score <= 4 & two_year_recid == 0 ~ "TN", 
+             decile_score >= 7 & two_year_recid == 0 ~ "FP", 
+             decile_score <= 4 & two_year_recid == 1 ~ "FN")
+  )
+
+results <- table(compas$classification)
+print(results)
+```
+
+    ## 
+    ##   FN   FP   TN   TP 
+    ## 1216  644 2681 1351
+
+``` r
+correct <- results["TP"] + results["TN"]
+cases <- results["TP"] + results["TN"] + results["FP"] + results["FN"]
+
+accuracy <- (correct/cases) * 100
+print(accuracy)
+```
+
+    ##       TP 
+    ## 68.43177
+
+To see how accurate the test is, I divided the correct cases by the
+total cases and multipled that by 100 to determine the “accuracy”
+percentage. About 68% of the cases are correct.
+
+## Part 3: Investigating Disparities
+
+``` r
+compas_bw <- compas %>%
+  filter(race %in% c("African-American", "Caucasian"))
+
+ggplot(compas_bw, aes(x = factor(decile_score), fill = factor(two_year_recid))) +
+  geom_bar(position = "dodge") + 
+  facet_wrap(~ race) 
+```
+
+![](lab-09_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+``` r
+compas_bw_b <- compas %>%
+  filter(race %in% c("African-American"))
+
+compas_bw_w <- compas %>%
+  filter(race %in% c("Caucasian"))
+
+compas_bw_w <- compas_bw_w %>% 
+  mutate(classification = case_when(
+    decile_score >= 7 & two_year_recid == 1 ~ "TP", 
+    decile_score <= 4 & two_year_recid == 0 ~ "TN", 
+    decile_score >= 7 & two_year_recid == 0 ~ "FP", 
+    decile_score <= 4 & two_year_recid == 1 ~ "FN"
+  )) 
+
+res_b <- table(compas_bw_b$classification)
+res_w <- table(compas_bw_w$classification)
+
+acc_black <- (res_b["TP"] + res_b["TN"]) / sum(res_b) * 100
+acc_white <- (res_w["TP"] + res_w["TN"]) / sum(res_w) * 100
+
+
+print(acc_black)
+```
+
+    ##       TP 
+    ## 66.77978
+
+``` r
+print(acc_white)
+```
+
+    ##       TP 
+    ## 70.43091
+
+``` r
+fp_acc_black <- (res_b["FP"]) / sum(res_b) * 100
+fp_acc_white <- (res_w["FP"]) / sum(res_w) * 100
+
+fn_acc_black <- (res_b["FN"]) / sum(res_b) * 100
+fn_acc_white <- (res_w["FN"]) / sum(res_w) * 100
+
+print(fp_acc_black)
+```
+
+    ##       FP 
+    ## 15.16797
+
+``` r
+print(fp_acc_white)
+```
+
+    ##       FP 
+    ## 6.736008
+
+``` r
+print(fn_acc_black)
+```
+
+    ##       FN 
+    ## 18.05226
+
+``` r
+print(fn_acc_white)
+```
+
+    ##       FN 
+    ## 22.83309
+
+``` r
+plot_data <- data.frame(
+  Race = c("African-American", "Caucasian", "African-American", "Caucasian"),
+  Error_Type = c("False Positive", "False Positive", "False Negative", "False Negative"),
+  Percentage = c(fp_acc_black, fp_acc_white, fn_acc_black, fn_acc_white)
+)
+
+accuracy_data <- data.frame(
+  Race = c("African-American", "Caucasian"),
+  Accuracy = c(acc_black, acc_white)
+)
+
+print(accuracy_data)
+```
+
+    ##               Race Accuracy
+    ## 1 African-American 66.77978
+    ## 2        Caucasian 70.43091
+
+``` r
+print(plot_data)
+```
+
+    ##               Race     Error_Type Percentage
+    ## 1 African-American False Positive  15.167967
+    ## 2        Caucasian False Positive   6.736008
+    ## 3 African-American False Negative  18.052257
+    ## 4        Caucasian False Negative  22.833086
+
+``` r
+ggplot(plot_data, aes(x = Error_Type, y = Percentage, fill = Race)) +
+  geom_col(position = "dodge") + 
+  labs(
+    title = "Comparison of COMPAS Error Rates by Race",
+    subtitle = "False Positives vs. False Negatives",
+    y = "Percentage (%)",
+    x = "Type of Error"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("African-American" = "steelblue", "Caucasian" = "gray"))
+```
+
+![](lab-09_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->
+
+``` r
+ggplot(accuracy_data, aes(x = Race, y = Accuracy, fill = Race)) +
+  geom_col() + 
+  geom_text(aes(label = round(Accuracy, 1)), visualize = TRUE, vjust = -0.5) +
+  labs(
+    title = "Overall COMPAS Accuracy by Race",
+    subtitle = "Percentage of correct predictions (TP + TN) / Total",
+    x = "Race",
+    y = "Accuracy Percentage (%)"
+  ) +
+  scale_fill_manual(values = c("African-American" = "steelblue", "Caucasian" = "gray")) +
+  ylim(0, 100) +
+  theme_minimal() +
+  theme(legend.position = "none") 
+```
+
+    ## Warning in geom_text(aes(label = round(Accuracy, 1)), visualize = TRUE, :
+    ## Ignoring unknown parameters: `visualize`
+
+![](lab-09_files/figure-gfm/unnamed-chunk-8-3.png)<!-- -->
+
+The overall accuracy is lower for African Americans and the rate of
+false positives (high risk without recidivation) was higher for
+African-Americans. Furthermore, way more white individuals were
+classified as low risk but did recidivate (false negative). Using column
+plots provides the simplicity of bar and histograms while also modelling
+relationships. I find bar plots to be some of the simplest to understand
+when done right and, as such, viewers can easily see the percentages of
+the accuracy and compare the numbers of false positives and false
+negatives.
+
+note: I really enjoy this lab but it is quite long and has taken me a
+while. It might be useful to condense or remove some sections.
+
+## Part 4: Understanding the sources of bias
+
+I
+
+``` r
+ggplot(compas_bw, aes(x = factor(decile_score), y = priors_count, fill = race)) +
+  stat_summary(fun = "mean", geom = "bar", position = "dodge") +
+  labs(
+    title = " Prior Convictions by COMPAS Score",
+    x = "Decile Score",
+    y = "Priors Count",
+    fill = "Race"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("African-American" = "steelblue", "Caucasian" = "gray"))
+```
+
+![](lab-09_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+``` r
+calibration_data <- compas_bw %>%
+  group_by(race, decile_score) %>%
+  summarize(
+    recidivism_rate = mean(two_year_recid),
+    total_people = n()
+  ) %>%
+  ungroup()
+```
+
+    ## `summarise()` has grouped output by 'race'. You can override using the
+    ## `.groups` argument.
+
+``` r
+ggplot(calibration_data, aes(x = decile_score, y = recidivism_rate, color = race)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  geom_abline(intercept = 0, slope = 0.1, linetype = "dashed", color = "gray") +
+  scale_x_continuous(breaks = 1:10) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "COMPAS Calibration Check by Race",
+    subtitle = "Does the same score predict the same recidivism rate for both groups?",
+    x = "Decile Score",
+    y = "Actual Recidivism Rate",
+    color = "Race"
+  ) +
+  scale_color_manual(values = c("African-American" = "steelblue", "Caucasian" = "gray30")) +
+  theme_minimal()
+```
+
+    ## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+    ## ℹ Please use `linewidth` instead.
+    ## This warning is displayed once per session.
+    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+    ## generated.
+
+![](lab-09_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
+
+Based on the analysis, there is evidence that the algorithm is fair.
+Obtaining the same score as an African-American predicts similar or the
+same recidivism rate as for Caucasian’s except for around a Decile Score
+of 3 and 4. However, once the score is high enough, the algorithm can
+predict the recidivism rate.
+
+## Part 5: Fairer Algorithms
+
+To make a fairer assessment algorithm, I would mainly address the
+mischaracterization of Black individuals as high risk. It would be
+interesting to know what exactly goes into characterizing individuals as
+high risk versus low risk – is it the severity of the charge? Is it the
+felonies? I’m not sure what exactly goes into the algorithm but I would
+start there.
+
+When thinking about “fairness” I think people often imagine “equality”
+instead of “equity.” The danger that follows this is an over examination
+of black behaviors and faster sentencing and labelling of black
+individuals compared to their white counterparts. We see this happen
+socially with the adultification of black children. Where a black child
+gets penalized by the system, their white counterpart may get a warning.
+As such, black children and people seem to be ‘repeat offenders’
+compared to their white counterparts. Additionally, we have to consider
+that black people are disporportionately represented in the system. An
+argument a lot of people present is that more white individuals go to
+jail. While this is true, people forget porportions. Individuals should
+consider porportions of the population when redesigning algorithms that
+can shape people’s lives.
