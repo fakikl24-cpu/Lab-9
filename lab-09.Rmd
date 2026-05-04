@@ -1,7 +1,7 @@
 ---
 title: "Lab 09: Algorithmic Bias"
-author: "Insert your name here"
-date: "Insert date here"
+author: "Kryschelle"
+date: "5/04/2026"
 output: github_document
 ---
 
@@ -12,6 +12,8 @@ First, let's load the necessary packages:
 ```{r load-packages, message = FALSE}
 library(tidyverse)
 library(fairness)
+library(janitor)
+library(readr)
 ```
 
 ### The data
@@ -19,10 +21,67 @@ library(fairness)
 For this lab, we'll use the COMPAS dataset compiled by ProPublica. The data has been preprocessed and cleaned for you. You'll have to load it yourself. The dataset is available in the `data` folder, but I've changed the file name from `compas-scores-two-years.csv` to `compas-scores-2-years.csv`. I've done this help you practice debugging code when you encounter an error.
 
 ```{r}
-compas <- read_csv("data/compas-scores-two-years.csv")
+# Load the COMPAS data
+compas <- read_csv("data/compas-scores-2-years.csv") %>%
+  clean_names() %>%
+  rename(
+    decile_score = decile_score_12,
+    priors_count = priors_count_15
+  )
+
+# Take a look at the data
+glimpse(compas)
 ```
 
+## Exercise Part 1: Exploring the Data
 
-## Additional Exercises  
+```{r}
+
+nrow(compas)
+
+ncol(compas)
+
+```
+The dimensions of the dataset are 7214 by 53. Each row represents a defendant. The variables include demographics and information regarding their charges, offenses, as well as their COMPAS scores and their recidivism rate. 
+
+```{r}
+
+length(unique(compas$name))
+
+```
+There are 7158 unique defendants in the dataset. This is not the same as rows because some people may show up multiple times in the dataset due to repeat offenses (or recidivism).
+
+```{r}
+
+ggplot(compas, aes(x = decile_score)) +
+  geom_bar()
+
+```
+
+Based on the graph, the distribution is positively skewed, indicating that most people are viewed as low risk. 
+
+```{r}
+
+ggplot(compas, aes(x = race)) +
+  geom_bar()
+
+ggplot(compas, aes(x = sex)) +
+  geom_bar()
+
+ggplot(compas, aes(x = age)) +
+  geom_bar()
+
+```
+
+## Part 2: Risk Scores and Recividism 
+
+```{r}
+
+ggplot(compas, aes(x = factor( decile_score), fill = factor( two_year_recid))) +
+  geom_bar(position = "dodge")
+
+```
+
+Higher risk scores don't actually relate to higher levels of recidivism. People who did recidivate two years later did have higher compas scores than people who didn't but people who recidivated don't seem just as likely to have a high risk score as a low risk score. 
 
 Almost there! Keep building on your work and follow the same structure for any remaining exercises. Each exercise builds on the last, so take your time and make sure your code is working as expected.  
